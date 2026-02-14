@@ -1,0 +1,55 @@
+#!/bin/bash
+## Description: Export model preset to STL
+## Usage: export <model> <preset>
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: ddev export <model> <preset>"
+  echo
+  echo "Export a model preset to STL."
+  echo "Scale ruler is always disabled for export."
+  echo "Looks for presets at params/<model>/<preset>.json or params/<model>-<preset>.json."
+  echo "Output: build/stl/<model>-<preset>.stl"
+}
+
+if [ "$#" -eq 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
+  usage
+  exit 0
+fi
+
+if [ "$#" -ne 2 ]; then
+  usage >&2
+  exit 1
+fi
+
+model="$1"
+preset="$2"
+
+scad_file="models/${model}.scad"
+if [ ! -f "$scad_file" ]; then
+  echo "Missing model file: $scad_file" >&2
+  exit 1
+fi
+
+preset_file="params/${model}/${preset}.json"
+if [ ! -f "$preset_file" ]; then
+  preset_file="params/${model}-${preset}.json"
+fi
+if [ ! -f "$preset_file" ]; then
+  echo "Missing preset JSON: params/${model}/${preset}.json or params/${model}-${preset}.json" >&2
+  exit 1
+fi
+
+mkdir -p build/stl
+
+cmd=(openscad --render -o "build/stl/${model}-${preset}.stl")
+while IFS=$'\t' read -r key json_value; do
+  cmd+=("-D" "${key}=${json_value}")
+done < <(jq -r 'to_entries[] | [.key, (.value|tojson)] | @tsv' "$preset_file")
+cmd+=("-D" "show_scale=false")
+cmd+=("$scad_file")
+
+"${cmd[@]}"
+
+echo "Exported: build/stl/${model}-${preset}.stl"

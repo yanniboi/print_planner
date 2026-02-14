@@ -1,0 +1,16 @@
+name: print-planner
+type: generic
+docroot: ""
+php_version: "8.4"
+webserver_type: generic
+xdebug_enabled: false
+additional_hostnames: []
+additional_fqdns: []
+database: {}
+use_dns_when_possible: true
+composer_version: "2"
+web_environment: []
+corepack_enable: false
+omit_containers:
+  - db
+  - ddev-ssh-agent

@@ -1,0 +1,30 @@
+{
+  "iso": {
+    "camera": "0,0,0,55,0,35,220",
+    "projection": "perspective"
+  },
+  "front": {
+    "camera": "0,0,0,0,0,0,220",
+    "projection": "orthogonal"
+  },
+  "top": {
+    "camera": "0,0,0,90,0,0,220",
+    "projection": "orthogonal"
+  },
+  "side": {
+    "camera": "0,0,0,0,90,0,220",
+    "projection": "orthogonal"
+  },
+  "custom": {
+    "camera": "0,0,0,0,-30,0,220",
+    "projection": "perspective"
+  },
+  "word-1": {
+    "camera": "0,0,0,0,30,0,220",
+    "projection": "perspective"
+  },
+  "word-2": {
+    "camera": "0,0,0,0,-30,0,220",
+    "projection": "perspective"
+  }
+}

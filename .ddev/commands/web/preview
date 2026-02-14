@@ -1,0 +1,118 @@
+#!/bin/bash
+## Description: Render model preset to PNG
+## Usage: preview <model> <preset>
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: ddev preview [--hide-scale] [--camera-preset <name>] <model> <preset>"
+  echo
+  echo "Render a model preset to PNG."
+  echo "Scale ruler is shown by default. Use --hide-scale to disable it."
+  echo "Camera presets are loaded from config/camera-presets.json."
+  echo "Use --camera-preset <name> (for example: iso, front, top, side)."
+  echo "Looks for presets at params/<model>/<preset>.json or params/<model>-<preset>.json."
+  echo "Output: build/png/<model>-<preset>.png"
+}
+
+if [ "$#" -eq 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
+  usage
+  exit 0
+fi
+
+hide_scale="false"
+camera_preset=""
+positionals=()
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --hide-scale)
+      hide_scale="true"
+      shift
+      ;;
+    --camera-preset)
+      if [ "$#" -lt 2 ]; then
+        echo "Missing value for --camera-preset" >&2
+        usage >&2
+        exit 1
+      fi
+      camera_preset="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      positionals+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [ "${#positionals[@]}" -ne 2 ]; then
+  usage >&2
+  exit 1
+fi
+
+model="${positionals[0]}"
+preset="${positionals[1]}"
+
+scad_file="models/${model}.scad"
+if [ ! -f "$scad_file" ]; then
+  echo "Missing model file: $scad_file" >&2
+  exit 1
+fi
+
+preset_file="params/${model}/${preset}.json"
+if [ ! -f "$preset_file" ]; then
+  preset_file="params/${model}-${preset}.json"
+fi
+if [ ! -f "$preset_file" ]; then
+  echo "Missing preset JSON: params/${model}/${preset}.json or params/${model}-${preset}.json" >&2
+  exit 1
+fi
+
+mkdir -p build/png
+
+cmd=(openscad --render --imgsize=1600,1200 -o "build/png/${model}-${preset}.png")
+
+if [ -n "$camera_preset" ]; then
+  camera_file="config/camera-presets.json"
+  if [ ! -f "$camera_file" ]; then
+    echo "Missing camera presets file: $camera_file" >&2
+    exit 1
+  fi
+
+  if ! jq -e --arg name "$camera_preset" '.[$name]' "$camera_file" >/dev/null; then
+    echo "Unknown camera preset: $camera_preset" >&2
+    echo "Available presets:" >&2
+    jq -r 'keys[]' "$camera_file" >&2
+    exit 1
+  fi
+
+  camera_value="$(jq -r --arg name "$camera_preset" '.[$name].camera' "$camera_file")"
+  projection_value="$(jq -r --arg name "$camera_preset" '.[$name].projection // empty' "$camera_file")"
+  cmd+=("--camera=${camera_value}")
+  if [ -n "$projection_value" ]; then
+    cmd+=("--projection=${projection_value}")
+  fi
+else
+  cmd+=("--autocenter" "--viewall")
+fi
+
+while IFS=$'\t' read -r key json_value; do
+  cmd+=("-D" "${key}=${json_value}")
+done < <(jq -r 'to_entries[] | [.key, (.value|tojson)] | @tsv' "$preset_file")
+
+if [ "$hide_scale" = "true" ]; then
+  cmd+=("-D" "show_scale=false")
+else
+  cmd+=("-D" "show_scale=true")
+fi
+
+cmd+=("$scad_file")
+
+xvfb-run -a "${cmd[@]}"
+
+echo "Rendered: build/png/${model}-${preset}.png"

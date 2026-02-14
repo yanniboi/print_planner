@@ -1,0 +1,35 @@
+#!/bin/bash
+## Description: Validate exported STL with admesh
+## Usage: validate <model> <preset>
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: ddev validate <model> <preset>"
+  echo
+  echo "Validate an exported STL using admesh."
+  echo "Input: build/stl/<model>-<preset>.stl"
+}
+
+if [ "$#" -eq 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
+  usage
+  exit 0
+fi
+
+if [ "$#" -ne 2 ]; then
+  usage >&2
+  exit 1
+fi
+
+model="$1"
+preset="$2"
+stl_file="build/stl/${model}-${preset}.stl"
+
+if [ ! -f "$stl_file" ]; then
+  echo "Missing STL file: $stl_file" >&2
+  echo "Run: ddev export $model $preset" >&2
+  exit 1
+fi
+
+echo "Validating: $stl_file"
+admesh "$stl_file"

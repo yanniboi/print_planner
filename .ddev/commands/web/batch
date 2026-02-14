@@ -1,0 +1,58 @@
+#!/bin/bash
+## Description: Render and export all presets for a model
+## Usage: batch <model>
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: ddev batch <model>"
+  echo
+  echo "Render PNG and export STL for every preset for the model."
+  echo "Discovers presets at params/<model>/*.json and params/<model>-*.json."
+}
+
+if [ "$#" -eq 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
+  usage
+  exit 0
+fi
+
+if [ "$#" -ne 1 ]; then
+  usage >&2
+  exit 1
+fi
+
+model="$1"
+scad_file="models/${model}.scad"
+
+if [ ! -f "$scad_file" ]; then
+  echo "Missing model file: $scad_file" >&2
+  exit 1
+fi
+
+dir_pattern="params/${model}/*.json"
+flat_pattern="params/${model}-*.json"
+
+shopt -s nullglob
+files=( $dir_pattern $flat_pattern )
+shopt -u nullglob
+
+if [ "${#files[@]}" -eq 0 ]; then
+  echo "No preset files found for model '$model'." >&2
+  echo "Expected params/${model}/*.json or params/${model}-*.json" >&2
+  exit 1
+fi
+
+for preset_file in "${files[@]}"; do
+  base="$(basename "$preset_file" .json)"
+  if [[ "$base" == "${model}-"* ]]; then
+    preset="${base#${model}-}"
+  else
+    preset="$base"
+  fi
+
+  echo "==> ${model}:${preset}"
+  /mnt/ddev_config/commands/web/preview "$model" "$preset"
+  /mnt/ddev_config/commands/web/export "$model" "$preset"
+done
+
+echo "Completed batch for model '$model'."

@@ -8,6 +8,7 @@ CLI-first workflow for generating 3D-printable models with OpenSCAD inside DDEV.
 ddev restart
 ddev preview box small
 ddev export box small && ddev validate box small
+ddev slice box small
 ```
 
 ## Pipeline
@@ -17,6 +18,7 @@ ddev export box small && ddev validate box small
 3. Render review image: `ddev preview <name> <preset>`.
 4. Export STL: `ddev export <name> <preset>`.
 5. Validate STL: `ddev validate <name> <preset>`.
+6. Slice G-code: `ddev slice <name> <preset>`.
 
 For all presets of a model: `ddev batch <name>`.
 
@@ -25,6 +27,7 @@ For all presets of a model: `ddev batch <name>`.
 - `ddev preview [--hide-scale] [--camera-preset <name>] <model> <preset>`: PNG output in `build/png/`.
 - `ddev export <model> <preset>`: STL output in `build/stl/`.
 - `ddev validate <model> <preset>`: Runs `admesh` checks.
+- `ddev slice [--printer <name>] [--profile <path>] <model> <preset>`: G-code output in `build/gcode/`.
 - `ddev batch <model>`: Runs preview + export for every preset.
 
 Use `--help` on any command for quick usage.
@@ -33,5 +36,6 @@ Use `--help` on any command for quick usage.
 
 - Preview shows a fixed 100 mm ruler by default; hide with `--hide-scale`.
 - Camera presets are defined in `config/camera-presets.json`.
+- Slicer printer/profile mapping is defined in `config/slicer-presets.json`.
 - Export always disables the ruler.
 - Container deps are installed via `.ddev/web-build/Dockerfile`.

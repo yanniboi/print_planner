@@ -1,0 +1,9 @@
+{
+  "anycubic_mega_s": {
+    "profile": "slicer/prusa/profiles/anycubic_mega_s.ini",
+    "vendor_ini": "/usr/share/PrusaSlicer/profiles/Anycubic.ini",
+    "printer_profile": "Anycubic i3 Mega S",
+    "print_profile": "0.20mm QUALITY @MEGA",
+    "material_profile": "Generic PLA @MEGA"
+  }
+}

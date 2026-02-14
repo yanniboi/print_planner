@@ -1,0 +1,119 @@
+#!/bin/bash
+## Description: Slice STL to G-code using PrusaSlicer
+## Usage: slice [--printer <name>] [--profile <path>] <model> <preset>
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: ddev slice [--printer <name>] [--profile <path>] <model> <preset>"
+  echo
+  echo "Slice build/stl/<model>-<preset>.stl into build/gcode/<model>-<preset>.gcode."
+  echo "Default printer key: anycubic_mega_s (from config/slicer-presets.json)."
+  echo "Use --profile to bypass preset lookup with an explicit .ini file."
+  echo "Preference order: explicit profile -> local mapped profile -> vendor preset -> defaults."
+}
+
+printer="anycubic_mega_s"
+profile_override=""
+positionals=()
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --printer)
+      if [ "$#" -lt 2 ]; then
+        echo "Missing value for --printer" >&2
+        usage >&2
+        exit 1
+      fi
+      printer="$2"
+      shift 2
+      ;;
+    --profile)
+      if [ "$#" -lt 2 ]; then
+        echo "Missing value for --profile" >&2
+        usage >&2
+        exit 1
+      fi
+      profile_override="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      positionals+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [ "${#positionals[@]}" -ne 2 ]; then
+  usage >&2
+  exit 1
+fi
+
+model="${positionals[0]}"
+preset="${positionals[1]}"
+stl_file="build/stl/${model}-${preset}.stl"
+gcode_file="build/gcode/${model}-${preset}.gcode"
+
+if [ ! -f "$stl_file" ]; then
+  echo "Missing STL file: $stl_file" >&2
+  echo "Run: ddev export $model $preset" >&2
+  exit 1
+fi
+
+if [ -n "$profile_override" ]; then
+  profile_file="$profile_override"
+  vendor_ini=""
+  printer_profile=""
+  print_profile=""
+  material_profile=""
+else
+  slicer_preset_file="config/slicer-presets.json"
+  if [ ! -f "$slicer_preset_file" ]; then
+    echo "Missing slicer presets file: $slicer_preset_file" >&2
+    exit 1
+  fi
+
+  if ! jq -e --arg printer "$printer" '.[$printer]' "$slicer_preset_file" >/dev/null; then
+    echo "Unknown printer key: $printer" >&2
+    echo "Available printer keys:" >&2
+    jq -r 'keys[]' "$slicer_preset_file" >&2
+    exit 1
+  fi
+
+  profile_file="$(jq -r --arg printer "$printer" '.[$printer].profile // empty' "$slicer_preset_file")"
+  vendor_ini="$(jq -r --arg printer "$printer" '.[$printer].vendor_ini // empty' "$slicer_preset_file")"
+  printer_profile="$(jq -r --arg printer "$printer" '.[$printer].printer_profile // empty' "$slicer_preset_file")"
+  print_profile="$(jq -r --arg printer "$printer" '.[$printer].print_profile // empty' "$slicer_preset_file")"
+  material_profile="$(jq -r --arg printer "$printer" '.[$printer].material_profile // empty' "$slicer_preset_file")"
+fi
+
+mkdir -p build/gcode
+
+if [ -n "$profile_file" ] && [ -f "$profile_file" ]; then
+  prusa-slicer --load "$profile_file" --export-gcode "$stl_file" --output "$gcode_file"
+elif [ -n "$vendor_ini" ] && [ -f "$vendor_ini" ] && [ -n "$printer_profile" ] && [ -n "$print_profile" ] && [ -n "$material_profile" ]; then
+  echo "Using PrusaSlicer vendor preset for '$printer'."
+  if prusa-slicer --load "$vendor_ini" --printer-profile "$printer_profile" --print-profile "$print_profile" --material-profile "$material_profile" --export-gcode "$stl_file" --output "$gcode_file"; then
+    :
+  else
+    echo "Vendor preset lookup failed; trying vendor ini defaults." >&2
+    if prusa-slicer --load "$vendor_ini" --export-gcode "$stl_file" --output "$gcode_file"; then
+      :
+    else
+      echo "Vendor ini fallback failed; falling back to PrusaSlicer defaults." >&2
+      prusa-slicer --export-gcode "$stl_file" --output "$gcode_file"
+    fi
+  fi
+else
+  if [ -n "$profile_file" ]; then
+    echo "Profile not found: $profile_file" >&2
+  fi
+  echo "Falling back to PrusaSlicer defaults. Use --profile to choose a specific .ini file." >&2
+  prusa-slicer --export-gcode "$stl_file" --output "$gcode_file"
+fi
+
+echo "Sliced: $gcode_file"

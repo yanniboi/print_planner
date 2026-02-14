@@ -61,3 +61,50 @@ If `--camera-preset` is not used at all, `ddev preview` falls back to `--autocen
 ```
 
 To add a new view, add another top-level object and use its key as the preset name.
+
+## Slicer Presets
+
+File: `slicer-presets.json`
+
+Maps printer keys to PrusaSlicer profile files used by `ddev slice`.
+
+### Format
+
+```json
+{
+  "printer-key": {
+    "profile": "slicer/prusa/profiles/printer-key.ini",
+    "vendor_ini": "/usr/share/PrusaSlicer/profiles/Vendor.ini",
+    "printer_profile": "Vendor Printer Name",
+    "print_profile": "Vendor Print Profile Name",
+    "material_profile": "Vendor Material Profile Name"
+  }
+}
+```
+
+### Example
+
+```json
+{
+  "anycubic_mega_s": {
+    "profile": "slicer/prusa/profiles/anycubic_mega_s.ini",
+    "vendor_ini": "/usr/share/PrusaSlicer/profiles/Anycubic.ini",
+    "printer_profile": "Anycubic i3 Mega S",
+    "print_profile": "0.20mm QUALITY @MEGA",
+    "material_profile": "Generic PLA @MEGA"
+  }
+}
+```
+
+Use with:
+
+`ddev slice --printer anycubic_mega_s <model> <preset>`
+
+If you pass `--profile <path>`, this mapping is bypassed.
+
+Resolution order in `ddev slice`:
+
+1. `--profile <path>` (explicit override)
+2. Mapped `profile` file (if present)
+3. Vendor preset fields (`vendor_ini` + profile names)
+4. PrusaSlicer defaults

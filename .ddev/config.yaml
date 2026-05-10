@@ -1,8 +1,8 @@
 name: print-planner
 type: generic
-docroot: ""
+docroot: "build/png"
 php_version: "8.4"
-webserver_type: generic
+webserver_type: nginx-fpm
 xdebug_enabled: false
 additional_hostnames: []
 additional_fqdns: []
